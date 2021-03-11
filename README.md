@@ -13,3 +13,4 @@ Ongoing project to make lives of Boun students easier.
   - There are alternatives but current solutions don't have enough functionality.  
 - *Prerequisite checker*
 - *Summer term calculator*
+- *Better calendar*
