@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Boun Courses Quotas</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <script src="//ajax.aspnetcdn.com/ajax/jQuery/jquery-3.4.1.min.js"></script>  
+</head>
+<body>
+
+    <div>
+        <p id='error'></p>
+        <input id='abbr' type='text' placeholder="Enter Course Abbr.">
+        <input id='code' type='text' placeholder="Enter Course Code">
+        <input id='section' type='number' min='1' value='1' placeholder="Enter Course Section">
+        <input id='section1' type='number' min='1' value='1' placeholder="Enter Course Section End Interval">
+        <button onclick="handlers.addCourse()">Add course to the list</button><br>
+        <p>EMPTY QUOTA: <br><span id='emptyQuotaSpan'></span></p>
+        <p>UNLIMITED QUOTA: <br><span id='unlimitedSpan'></span></p>
+        <p>NEED CONSENT: <br><span id='consentSpan'></span></p>
+        <button id='reloadText' onclick='reloadText()'>Find Open Quotas</button>
+        <button id='reload' onclick='reloadOnce()'>Refresh</button>
+        <p>Enable AutoRefresh (every 10 sec)<input type='checkbox' id='autoReloadCheck' onchange="reloadPage()"></p>
+        <p id='countdownP'>Countdown: <span id='countdown'>10</span></p>
+    </div>
+
+    <br><br><br>
+
+    <ul>
+
+    </ul>
+</body>
+
+<script>
+let courseList = {
+    courses: [],
+    
+    addCourse: function (abbr, code, section){
+        this.courses.push({
+            abbr: abbr.toUpperCase(),
+            code: code.toUpperCase(),
+            section: section
+        });
+    },
+
+    deleteCourse: function(position){
+        this.courses.splice(position,1);
+    },
+
+
+}
+
+
+let handlers = {
+    addCourse: function(){
+        const abbr = document.getElementById('abbr').value.toUpperCase();
+        const code = document.getElementById('code').value.toUpperCase();
+        const section = document.getElementById('section').value;
+        const section1 = document.getElementById('section1').value;
+
+        if(section1!='' && !isNaN(section1) && section1>0){
+            
+            for(let i = parseInt(section);i<=section1;i++){
+                let newSection = i;
+                if(newSection<10) newSection='0'+newSection;
+                const id = abbr+code+'-'+newSection;
+                let flag1 = [0];
+                courseList.courses.forEach(function(course, position){
+                    const control = course.abbr+course.code+'-'+course.section;
+                    if (control == id) {
+                            flag1.push(1);
+                            document.getElementById('error').innerText='Some courses couldn\'t added. Wrong entry or course is already on the list';
+                    }
+                });
+                if(flag1.indexOf(1)==-1){
+                    courseList.addCourse(abbr, code, newSection);
+                }
+            }
+            view.displayCourses();
+            return;
+        }
+
+        let newSection = parseInt(section);
+        if(newSection<10) newSection='0'+newSection; 
+        const id = abbr+code+'-'+newSection;
+        let flag2 = 0;
+        courseList.courses.forEach(function(course, position){
+            const control = course.abbr+course.code+'-'+course.section;
+            if (control == id) {
+                flag2 = 1;                
+                document.getElementById('error').innerText='Course is already on the list or wrong entry';
+            }
+        });        
+        if(flag2 == 0){            
+            courseList.addCourse(abbr, code, newSection);
+            document.getElementById('error').innerText='';
+            view.displayCourses();
+        }
+    },
+
+    deleteCourse: function(id){
+        courseList.courses.forEach(function(course, position){
+            const control = course.abbr+course.code+'-'+course.section;
+            if (control === id) {
+                courseList.deleteCourse(position);
+                document.getElementById('error').innerText='';
+            }
+        });
+        view.displayCourses();
+    },
+}
+
+
+let view = {
+    displayCourses: function(){              
+        let coursesUl = document.querySelector('ul');
+        coursesUl.innerHTML = '';
+        
+        courseList.courses.forEach(function(course, position){ 
+            let coursesLi = document.createElement('li');
+            coursesLi.id = course.abbr+course.code+'-'+course.section;
+            let textContent = course.abbr+course.code+'-'+course.section+' quotas are loading.';
+            coursesLi.textContent = textContent;
+            coursesLi.appendChild(this.createDeleteButton());
+            coursesUl.appendChild(coursesLi);
+            run(position);        
+        }, this)
+
+    },
+
+    createDeleteButton: function(){
+        let deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        deleteButton.className = 'deleteButton';
+        return deleteButton;
+    },
+    
+    setUpEventListeners: function(){
+        let coursesUl = document.querySelector('ul');
+
+        coursesUl.addEventListener('click', function(event){
+            let elemenetClicked = event.target;
+            if (elemenetClicked.className==='deleteButton') {
+                handlers.deleteCourse(elemenetClicked.parentNode.id);
+            }
+        })
+    }
+}
+
+view.setUpEventListeners();
+
+function run(position){   
+    const abbr = courseList.courses[position].abbr;
+    const code = courseList.courses[position].code;
+    const section = courseList.courses[position].section;
+    const id = abbr+code+'-'+section;
+    let year = new Date().getFullYear() - 1;
+    const month = new Date().getMonth() + 1;
+    let semester = -1;
+    if(month >= 9) {
+        semester = 1;
+        year++;
+    }
+    else if(month <= 3) semester = 2;
+    else semester = 3;
+    const year2 = year + 1;
+    const currentSemester = year + "/" + year2 + "-" + semester;
+    const url='https://registration.boun.edu.tr/scripts/quotasearch.asp?abbr='+abbr+'&code='+code+'&section='+section+'&donem='+currentSemester;    
+
+    const fullUrl = 'https://www.whateverorigin.org/get?url=' + encodeURIComponent(url) + '&callback=?';
+
+// var request = new XMLHttpRequest();
+// request.open('GET', fullUrl, true);
+
+// request.onload = function() {
+//   if (this.status >= 200 && this.status < 400) {
+//     // Success!
+//     var data = JSON.parse(this.response);
+//             let htmlCode = data.contents;        
+//         let parser = new DOMParser();
+//         let parsedHtml = parser.parseFromString(htmlCode, 'text/html');
+        
+//         let tableData = parsedHtml.querySelectorAll('table');
+
+//         if(typeof(tableData[0]) == 'undefined') {
+//             document.getElementById(id).innerHTML=id+' /////  Boyle bir ders bulunamadi   ';
+//             document.getElementById(id).appendChild(view.createDeleteButton());
+//             return;
+//         }
+                  
+//         let rowData = tableData[0].querySelectorAll('.schtd');    
+
+//         let columnData = [];
+//         for(let i = 0 ; i<rowData.length; i++){
+//             columnData[i] = rowData[i].querySelectorAll('td');
+//         }                
+        
+//         let finalData = [];
+//         for(let i = 0; i<columnData.length;i++){
+//             finalData[i] = [];
+//             for(let j = 0; j<4;j++){
+//                 finalData[i][j]=columnData[i][j].innerText;    
+//             }      
+//         }
+
+//         let tableString = '<br><table>'+
+//         '<tr><th>Department</th><th>Status</th><th>Quota</th><th>Current</th></tr>';
+//         for(let i = 0; i <finalData.length; i++){
+//             (i==0)?tableString+='<tr class="tr1">':tableString+='<tr>';
+//             for(let j = 0; j < 4; j++){
+//                 tableString+='<td>'+finalData[i][j]+'</td>';
+//             }
+//             tableString+='</tr>'
+//         }
+//         tableString+='</table>';
+
+//         if(document.getElementById(id)==null) return;
+//         document.getElementById(id).innerHTML=id+tableString;   
+//         document.getElementById(id).appendChild(view.createDeleteButton());
+//         document.getElementById(id).innerHTML+='<br><hr>'
+//         view.setUpEventListeners(); 
+//   } else {
+//     // We reached our target server, but it returned an error
+
+//   }
+// };
+
+// request.onerror = function() {
+//   // There was a connection error of some sort
+// };
+
+// request.send();
+
+
+
+
+$.getJSON('https://www.whateverorigin.org/get?url=' + encodeURIComponent(url) + '&callback=?', function(data){
+        let htmlCode = data.contents;        
+        let parser = new DOMParser();
+        let parsedHtml = parser.parseFromString(htmlCode, 'text/html');
+        
+        let tableData = parsedHtml.querySelectorAll('table');
+
+        if(typeof(tableData[0]) == 'undefined') {
+            document.getElementById(id).innerHTML=id+' /////  Boyle bir ders bulunamadi   ';
+            document.getElementById(id).appendChild(view.createDeleteButton());
+            return;
+        }
+                  
+        let rowData = tableData[0].querySelectorAll('.schtd');    
+
+        let columnData = [];
+        for(let i = 0 ; i<rowData.length; i++){
+            columnData[i] = rowData[i].querySelectorAll('td');
+        }                
+        
+        let finalData = [];
+        for(let i = 0; i<columnData.length;i++){
+            finalData[i] = [];
+            for(let j = 0; j<4;j++){
+                finalData[i][j]=columnData[i][j].innerText;    
+            }      
+        }
+
+        let tableString = '<br><table>'+
+        '<tr><th>Department</th><th>Status</th><th>Quota</th><th>Current</th></tr>';
+        for(let i = 0; i <finalData.length; i++){
+            (i==0)?tableString+='<tr class="tr1">':tableString+='<tr>';
+            for(let j = 0; j < 4; j++){
+                tableString+='<td>'+finalData[i][j]+'</td>';
+            }
+            tableString+='</tr>'
+        }
+        tableString+='</table>';
+
+        if(document.getElementById(id)==null) return;
+        document.getElementById(id).innerHTML=id+tableString;   
+        document.getElementById(id).appendChild(view.createDeleteButton());
+        document.getElementById(id).innerHTML+='<br><hr>'
+        view.setUpEventListeners(); 
+    });
+
+}
+const sleep = (milliseconds) => {
+  return new Promise(resolve => setTimeout(resolve, milliseconds))
+}
+const reloadPage = async () => {
+    const checked = document.getElementById('autoReloadCheck').checked;
+    let cd = document.getElementById('countdown');
+    
+    if(checked){
+        document.getElementById('countdownP').style.display='block';
+        await sleep(1000)
+        let cdInt = parseInt(cd.innerText);
+        cdInt--;        
+        cd.innerText=cdInt;
+        if(cd.innerText=='-1'){
+            cd.innerText='10';
+            reloadOnce();
+        }
+        reloadPage();
+
+    }
+    else{
+        document.getElementById('countdownP').style.display='none';
+        cd.innerText='10';
+    }
+}
+function reloadOnce(){
+    view.displayCourses();            
+}
+function reloadText(){
+    
+    //dom elements
+    const emptyQuotaSpan = document.getElementById('emptyQuotaSpan');
+    const unlimitedSpan = document.getElementById('unlimitedSpan');
+    const consentSpan = document.getElementById('consentSpan');
+    //arrays to put data
+    let emptyQuotaArray = []; //eklenebilecek derslerin arrayi
+    let unlimitedArray = []; //unlimited quotas
+    let consentArray = []; //consent dersleri array
+
+    const firsts = document.querySelectorAll('.tr1');                    
+    firsts.forEach(element => {                
+
+        //the main data
+        const datas = element.querySelectorAll('td');
+        // const mustAll = datas[0].innerText;//all olmak zorunda 
+        const inside = parseInt(datas[3].innerText);//dersi eklemis ogrenci sayidi
+        const all = parseInt(datas[2].innerText);//dersin kotasi, unlimited veya consent olabilir
+        
+
+        //get course id
+        let parent1 = datas[3].parentNode;
+        let parent2 = parent1.parentNode;
+        let parent3 = parent2.parentNode;
+        let parent4 = parent3.parentNode;
+        const courseID = parent4.id;                
+        
+        if(isNaN(all)){  
+            const quotaText = datas[2].innerText;                    
+                            
+            if(quotaText==='Consent Of Instructor '){
+                consentArray.push(courseID);
+
+            }
+            if(quotaText==='Unlimited '){
+                unlimitedArray.push(courseID);
+            }
+        }
+        else if (inside<all){
+            emptyQuotaArray.push(courseID);
+        }                              
+    });
+
+    consentSpan.innerText=consentArray;
+    emptyQuotaSpan.innerText=emptyQuotaArray;
+    unlimitedSpan.innerText=unlimitedArray;
+}
+</script>
+<style>
+    body {
+        margin-top: 30px;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        text-align: center;
+        background-color: aliceblue;
+      }
+      table,ul,li{
+          margin: auto;
+      }   
+      button{
+        background-color: #4CAF50;
+        border: none;
+        color: white;
+        padding: 5px 10px;
+        text-align: center;
+        text-decoration: none;
+        font-size: 16px;
+        margin: 20px auto;
+        min-width: 140px;
+      } 
+      input, select, p {
+        padding: 10px;
+        position: relative;
+        display: block;
+        width: 35%;
+        min-width: 350px;
+        margin: 0 auto;
+        font-family: 'Open Sans', 'Helvetica Neue', 'Segoe UI', 'Calibri', 'Arial', sans-serif;
+        font-size: 18px;
+        color: #60666d;
+      }
+      #countdownP{
+          display:none;
+      }
+</style>
+</html>
