@@ -12,4 +12,4 @@ Ongoing project to make lives of Boun students easier.
 - *Course planner*
   - There are alternatives but current solutions don't have enough functionality.  
 - *Prerequisite checker*
-- *Summer term calculations*
+- *Summer term calculator*
